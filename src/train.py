@@ -9,6 +9,7 @@ Purpose: Train LSTM Model
 from pathlib import Path
 
 from tensorflow.keras.callbacks import EarlyStopping
+from .scaler import DataScaler
 
 from .preprocessing import DataPreprocessor
 from .sequence_generator import SequenceGenerator
@@ -26,6 +27,8 @@ class Trainer:
 
         self.preprocessor = DataPreprocessor()
 
+        self.scaler = DataScaler()
+
         self.generator = SequenceGenerator()
 
         self.splitter = DatasetSplitter()
@@ -34,14 +37,32 @@ class Trainer:
 
     def train(self):
 
-        # Load and preprocess data
+        # Load dataset
         X, y = self.preprocessor.preprocess()
 
-        # Convert into LSTM sequences
-        X = self.generator.generate_sequences(X)
-
         # Split dataset
-        X_train, X_test, y_train, y_test = self.splitter.split(X, y)
+        (
+            X_train,
+            X_validation,
+            X_test,
+            y_train,
+            y_validation,
+            y_test
+        ) = self.splitter.split(X, y)
+
+        # Scale
+        X_train = self.scaler.fit_transform(X_train)
+
+        X_validation = self.scaler.transform(X_validation)
+
+        X_test = self.scaler.transform(X_test)
+
+        # Generate sequences
+        X_train = self.generator.generate_sequences(X_train)
+
+        X_validation = self.generator.generate_sequences(X_validation)
+
+        X_test = self.generator.generate_sequences(X_test)
 
         # Build model
         model = self.model_builder.build_model(
@@ -60,7 +81,7 @@ class Trainer:
         history = model.fit(
             X_train,
             y_train,
-            validation_data=(X_test, y_test),
+            validation_data=(X_validation, y_validation),
             epochs=30,
             batch_size=32,
             callbacks=[early_stopping]
