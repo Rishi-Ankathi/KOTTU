@@ -1,0 +1,85 @@
+/* ==========================================
+   KOTTU - Global Theme
+========================================== */
+
+:root {
+    --background: #1E223D;
+    --card: #2A3052;
+    --primary: #F54F1B;
+    --text: #F8FAFC;
+    --secondary: #B8BFD8;
+    --success: #2ECC71;
+    --warning: #F4C542;
+    --border: #3B4166;
+}
+
+
+/* ==========================================
+   Main App
+========================================== */
+
+.stApp {
+    background-color: var(--background);
+    color: var(--text);
+}
+
+
+/* Remove excessive Streamlit spacing */
+
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    padding-left: 3rem;
+    padding-right: 3rem;
+}
+
+.hero{
+    background:#2A3052;
+    padding:32px;
+    border-radius:20px;
+    border:1px solid #3B4166;
+    margin-bottom:30px;
+}
+
+.hero h1{
+    color:#F8FAFC;
+    font-size:52px;
+    margin-bottom:10px;
+}
+
+.hero h3{
+    color:#F8FAFC;
+    margin-bottom:20px;
+}
+
+.hero p{
+    color:#B8BFD8;
+    font-size:18px;
+    max-width:700px;
+    line-height:1.7;
+}
+
+.metric-card{
+    background:#2A3052;
+    border:1px solid #3B4166;
+    border-radius:16px;
+    padding:28px;
+    text-align:center;
+    transition:.25s;
+}
+
+.metric-card:hover{
+    border-color:#F54F1B;
+    transform:translateY(-3px);
+}
+
+.metric-card h2{
+    color:#F8FAFC;
+    margin:0;
+    font-size:34px;
+}
+
+.metric-card p{
+    color:#B8BFD8;
+    margin-top:8px;
+}

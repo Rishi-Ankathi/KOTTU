@@ -1,15 +1,114 @@
 import streamlit as st
 
+st.title("ℹ️ About KOTTU")
+st.subheader("Behavioral Authentication using Keystroke Dynamics")
 
-def show() -> None:
-    st.title("About KOTTU")
-    st.markdown("---")
-    st.write("KOTTU is a behavioral authentication system built around keystroke dynamics.")
-    st.write("It uses a long short-term memory model to learn typing patterns and verify users based on their behavior rather than only passwords.")
-    st.write("The project uses the DSL Strong Password Dataset, which contains typing samples that capture timing-based keystroke signals.")
-    st.write("The LSTM model is trained offline and the Streamlit interface only consumes saved model and evaluation artifacts.")
-    st.write("Authentication is performed by loading the saved model, scaling the input sample, and using the learned classifier to return a predicted user and confidence score.")
+st.markdown("---")
 
+# =====================================================
+# Project Overview
+# =====================================================
 
-if __name__ == "__main__":
-    show()
+st.header("Project Overview")
+
+st.write("""
+**KOTTU** is a Behavioral Authentication System that verifies a user's identity
+based on their unique typing patterns rather than relying only on passwords.
+
+The project analyzes keystroke dynamics such as key press duration and timing
+between consecutive keystrokes. These behavioral characteristics are then used
+by a Neural Network model to recognize and authenticate registered users.
+""")
+
+st.markdown("---")
+
+# =====================================================
+# Why KOTTU
+# =====================================================
+
+st.header("Why KOTTU?")
+
+st.write("""
+Traditional authentication methods verify **what a user knows** (passwords or PINs).
+
+KOTTU introduces an additional layer of security by verifying **how a user types**.
+Since typing behavior is unique to every individual, it becomes significantly
+more difficult for an attacker to impersonate another user, even if they know
+the correct password.
+
+Behavioral authentication can also be extended to continuous authentication,
+allowing systems to verify users throughout an active session.
+""")
+
+st.markdown("---")
+
+# =====================================================
+# Technology Stack
+# =====================================================
+
+st.header("Technology Stack")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("""
+### Frontend
+- Streamlit
+
+### Machine Learning
+- TensorFlow / Keras
+- Scikit-Learn
+
+### Programming
+- Python
+""")
+
+with col2:
+    st.markdown("""
+### Data Processing
+- Pandas
+- NumPy
+
+### Visualization
+- Matplotlib
+
+### Model
+- Neural Network (Keras)
+""")
+
+st.markdown("---")
+
+# =====================================================
+# Project Highlights
+# =====================================================
+
+st.header("Project Highlights")
+
+st.markdown("""
+- Neural Network based behavioral authentication
+- Keystroke dynamics feature analysis
+- Interactive Streamlit dashboard
+- Model evaluation using Accuracy, Precision, Recall and F1 Score
+- Visualization of training curves and confusion matrix
+- Modular project structure for training and deployment
+""")
+
+st.markdown("---")
+
+# =====================================================
+# Future Enhancements
+# =====================================================
+
+st.header("Future Enhancements")
+
+st.markdown("""
+- Real-time keystroke capture from the browser
+- Continuous user authentication
+- Support for larger user groups
+- Improved model accuracy using advanced architectures
+- Deployment as a cloud-based authentication service
+""")
+
+st.markdown("---")
+
+st.caption("KOTTU v1.0 | Behavioral Authentication System")

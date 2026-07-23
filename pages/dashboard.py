@@ -1,55 +1,56 @@
-from pathlib import Path
-
 import streamlit as st
+import json
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-MODELS_DIR = PROJECT_ROOT / "models"
-OUTPUT_DIR = PROJECT_ROOT / "output"
-METRICS_PATH = OUTPUT_DIR / "metrics" / "metrics.json"
+st.markdown("""
+<div class="hero">
 
+<h1>⌨️ KOTTU</h1>
 
-def _load_metrics() -> dict:
-    if not METRICS_PATH.exists():
-        return {}
+<h3>Behavioral Authentication Using Keystroke Dynamics</h3>
 
-    import json
+<p>
+Authenticate users through their typing behavior using
+Keystroke Dynamics and Machine Learning.
+</p>
 
-    with open(METRICS_PATH, "r", encoding="utf-8") as file:
-        return json.load(file)
+</div>
+""", unsafe_allow_html=True)
 
+with open("output/metrics/metrics.json", "r") as f:
+    metrics = json.load(f)
 
-def show() -> None:
-    st.title("KOTTU")
-    st.subheader("Behavioral Authentication System")
+accuracy = metrics["accuracy"] * 100
+precision = metrics["precision"] * 100
+recall = metrics["recall"] * 100
+f1 = metrics["f1_score"] * 100
 
-    st.markdown("---")
+col1, col2 = st.columns([1, 1])
 
-    metrics = _load_metrics()
-    accuracy = metrics.get("accuracy", 0.0)
+with col1:
+    if st.button("🔐 Authenticate", use_container_width=True):
+        st.switch_page("pages/authentication.py")
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Model Status", "Ready")
-    with col2:
-        st.metric("Model Accuracy", f"{accuracy * 100:.2f}%")
-    with col3:
-        st.metric("Users Trained", "Multiple")
-    with col4:
-        st.metric("Typing Samples", "Available")
+with col2:
+    if st.button("📊 Model Insights", use_container_width=True):
+        st.switch_page("pages/model_insights.py")
 
-    st.markdown("---")
+st.markdown("<br>", unsafe_allow_html=True)
 
-    st.subheader("Dataset")
-    st.write("The system uses keystroke dynamics samples from the DSL Strong Password Dataset.")
+col1, col2, col3, col4 = st.columns(4)
 
-    col5, col6 = st.columns(2)
-    with col5:
-        st.button("Start Authentication", use_container_width=True, disabled=not (MODELS_DIR / "kottu_model.keras").exists())
-    with col6:
-        if st.button("Model Insights", use_container_width=True):
-            st.switch_page("pages/modelInsights.py")
+cards = [
+    (f"{accuracy:.2f}%", "Accuracy"),
+    (f"{precision:.2f}%", "Precision"),
+    (f"{recall:.2f}%", "Recall"),
+    (f"{f1:.2f}%", "F1 Score"),
+]
 
-
-if __name__ == "__main__":
-    show()
+for col, (value, label) in zip([col1, col2, col3, col4], cards):
+    with col:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h2>{value}</h2>
+            <p>{label}</p>
+        </div>
+        """, unsafe_allow_html=True)

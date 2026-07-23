@@ -1,46 +1,63 @@
-from pathlib import Path
-
 import streamlit as st
 
-from src.predict import Predictor
+st.title("🔐 Authentication")
+st.subheader("Behavioral Authentication using Keystroke Dynamics")
 
+st.markdown("---")
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-MODELS_DIR = PROJECT_ROOT / "models"
+st.write(
+    "Enter the passphrase below. The authentication model will be "
+    "connected in the next phase of the project."
+)
 
+st.markdown("<br>", unsafe_allow_html=True)
 
-PASSWORD = "tie5Roanl"
+col1, col2 = st.columns([2, 1])
 
+with col1:
 
-def show() -> None:
-    st.title("Authentication")
-    st.subheader("Verify a typing sample")
+    user = st.selectbox(
+        "Select User",
+        [
+            "User 1",
+            "User 2",
+            "User 3",
+            "User 4"
+        ]
+    )
 
-    st.markdown("---")
-    st.write(f"Password: {PASSWORD}")
+    passphrase = st.text_input(
+        "Passphrase",
+        placeholder="Type the passphrase here..."
+    )
 
-    if not (MODELS_DIR / "kottu_model.keras").exists():
-        st.warning("Model artifacts are not available yet. Train the model first.")
-        return
+    authenticate = st.button(
+        "🔐 Authenticate",
+        use_container_width=True
+    )
 
-    sample_input = st.text_input("Type the password", value="", placeholder="Enter the typing pattern")
+with col2:
 
-    if st.button("Verify"):
-        if not sample_input.strip():
-            st.warning("Please provide a typing sample before verifying.")
-            return
+    st.markdown(
+        """
+        ### Instructions
 
-        predictor = Predictor()
-        result = predictor.predict([0.0] * 31)
+        - Select the registered user.
+        - Type the predefined passphrase.
+        - Press **Authenticate**.
+        - Model integration will be added later.
+        """
+    )
 
-        st.metric("Predicted User", result["user"])
-        st.metric("Confidence", f"{result['confidence'] * 100:.2f}%")
+st.markdown("---")
 
-        if result["confidence"] >= 0.5:
-            st.success("Authentication Status: Verified")
-        else:
-            st.error("Authentication Status: Rejected")
+if authenticate:
 
+    if passphrase.strip() == "":
+        st.warning("Please enter the passphrase.")
 
-if __name__ == "__main__":
-    show()
+    else:
+        st.info(
+            "Authentication model is not connected yet.\n\n"
+            "This page currently demonstrates the user interface."
+        )

@@ -1,19 +1,47 @@
 import streamlit as st
 
+from ui.components import load_css
+
 st.set_page_config(
     page_title="KOTTU",
     page_icon="⌨️",
     layout="wide"
 )
 
-st.sidebar.title("Navigation")
-st.sidebar.page_link("pages/dashboard.py", label="Dashboard")
-st.sidebar.page_link("pages/authentication.py", label="Authentication")
-st.sidebar.page_link("pages/modelInsights.py", label="Model Insights")
-st.sidebar.page_link("pages/about.py", label="About")
+load_css()
 
-st.title("⌨️ KOTTU")
-st.subheader("Behavioral Authentication System")
+dashboard = st.Page(
+    "pages/dashboard.py",
+    title="Dashboard",
+    icon="🏠",
+    default=True
+)
 
-st.markdown("---")
-st.write("Use the navigation panel to explore the saved model, authentication workflow, and performance artifacts.")
+authentication = st.Page(
+    "pages/authentication.py",
+    title="Authentication",
+    icon="🔐"
+)
+
+insights = st.Page(
+    "pages/model_insights.py",
+    title="Model Insights",
+    icon="📊"
+)
+
+about = st.Page(
+    "pages/about.py",
+    title="About",
+    icon="ℹ️"
+)
+
+pg = st.navigation(
+    [
+        dashboard,
+        authentication,
+        insights,
+        about
+    ]
+)
+
+pg.run()
