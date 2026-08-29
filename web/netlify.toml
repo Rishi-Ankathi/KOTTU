@@ -1,0 +1,10 @@
+# Netlify build config for the KOTTU site.
+# Set PUBLIC_KOTTU_API in Site settings -> Environment variables (not here).
+
+[build]
+  base    = "web"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"

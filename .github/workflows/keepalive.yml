@@ -1,0 +1,30 @@
+name: keepalive
+
+# Pings the API's /health every ~10 min so the free Hugging Face Space
+# never goes to sleep and visitors never hit a cold start.
+#
+# Setup: repo Settings -> Secrets and variables -> Actions -> Variables ->
+#        add  KOTTU_API_URL = https://<owner>-kottu-api.hf.space
+#
+# Note: GitHub pauses scheduled workflows after 60 days with no repo activity.
+# If the project goes quiet, use an external pinger (e.g. UptimeRobot) instead.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ping /health
+        run: |
+          url="${{ vars.KOTTU_API_URL }}"
+          if [ -z "$url" ]; then
+            echo "::error::set the repo variable KOTTU_API_URL"
+            exit 1
+          fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 "$url/health")
+          echo "health -> $code"
+          [ "$code" = "200" ]

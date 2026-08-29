@@ -7,3 +7,8 @@ web/node_modules/
 web/dist/
 web/.astro/
 npm-debug.log*
+
+# local env (keep .env.example)
+web/.env
+web/.env.local
+web/.env.*.local
