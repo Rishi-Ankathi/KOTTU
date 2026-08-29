@@ -1,196 +1,312 @@
 ---
 import Base from "../layouts/Base.astro";
-import SectionRule from "../components/SectionRule.astro";
-import users from "../data/enrolled-users.json";
-
-const keys = [".", "t", "i", "e", "5", "R", "o", "a", "n", "l"];
 ---
 
 <Base title="Authenticate" active="Authenticate">
   <main class="pagehead">
-    <span class="eyebrow">Attempt</span>
+    <span class="eyebrow">Live</span>
     <h1 class="display">Prove it’s you<br />by how you type.</h1>
 
-    <p class="note mt-m">
-      Preview — the trained model isn’t wired into this page. Your keystroke
-      timing is captured for real; the match verdict is simulated behind a
-      single swap point.
+    <p class="apistat" id="apistat">
+      <span class="dot"></span><span id="apistat-text">checking API…</span>
     </p>
 
-    <div class="authgrid mt-l">
-      <form id="auth-form" autocomplete="off">
-        <label class="field">
-          <span>Enrolled identity</span>
-          <select id="user">
-            {users.map((u) => <option value={u}>{u}</option>)}
-          </select>
-        </label>
+    <p class="note mt-m">
+      Keystroke timing is captured in the browser and scored by the model. A few
+      honest notes: browsers round timers to ~1&nbsp;ms (the benchmark rig was
+      ~0.2&nbsp;ms), so live accuracy sits below the reported numbers; Verify runs
+      at roughly 9% error each way; enrolled profiles are held in memory and lost
+      when the API restarts; the first request after an idle spell can take
+      ~30&nbsp;s while the service wakes.
+    </p>
 
-        <label class="field">
-          <span>Passphrase — type <code>.tie5Roanl</code></span>
-          <input id="phrase" type="text" spellcheck="false" placeholder=".tie5Roanl" />
-        </label>
+    <div class="toggle mt-l" id="mode" role="group" aria-label="Mode">
+      <button data-mode="identify" aria-pressed="true">Identify</button>
+      <button data-mode="verify" aria-pressed="false">Verify</button>
+    </div>
+    <p class="muted" id="mode-blurb"></p>
 
-        <div class="btn-row">
-          <button class="btn block bare" type="submit">Authenticate</button>
-        </div>
-      </form>
+    <section class="trace mt-m" aria-label="Keystroke capture">
+      <div class="tlabel">
+        <span>Type <code>.tie5Roanl</code> then Enter</span>
+        <span id="cap-count">0 / 11</span>
+      </div>
+      <input
+        id="phrase"
+        type="text"
+        spellcheck="false"
+        autocomplete="off"
+        placeholder=".tie5Roanl"
+        aria-label="Type the passphrase then press Enter"
+      />
+      <div class="keys" id="keycaps">
+        <span>.</span><span>t</span><span>i</span><span>e</span><span>5</span>
+        <span>R</span><span>o</span><span>a</span><span>n</span><span>l</span>
+        <span class="rtn">return</span>
+      </div>
+      <p class="muted mt-s">Hold time and key-to-key gaps are measured as you type.</p>
+    </section>
 
-      <section class="trace" aria-label="Live keystroke trace">
-        <div class="tlabel">
-          <span>Live capture</span>
-          <span id="capture-count">0 / 11 keys</span>
-        </div>
-        <div class="keys" id="keycaps">
-          {keys.map((k) => <span>{k}</span>)}
-          <span class="rtn">return</span>
-        </div>
-        <div class="wave" id="wave" aria-hidden="true">
-          {keys.concat(["r"]).map(() => <i style="height:6%"></i>)}
-        </div>
-        <p class="muted mt-s" id="capture-hint">
-          Hold time (H) and key-to-key gaps (DD / UD) are measured as you type.
-        </p>
-      </section>
+    <div id="enroll-panel" hidden>
+      <div class="rule" style="margin:22px 0 14px">
+        <span class="section__label">Enroll</span>
+      </div>
+      <label class="field" style="max-width:320px">
+        <span>Name for this profile</span>
+        <input id="enroll-name" type="text" spellcheck="false" placeholder="e.g. rishi" />
+      </label>
+      <p class="muted">
+        Type the passphrase <b id="enroll-target">10</b> times &mdash; progress
+        <b id="enroll-done">0</b> / <span id="enroll-target2">10</span>
+      </p>
     </div>
 
     <div id="result" hidden>
-      <SectionRule label="Result" />
-
-      <div class="panel">
-        <div id="verdict-slot"></div>
-
-        <div class="meter mt-m">
-          <span>Confidence</span>
-          <div class="track">
-            <div class="fill" id="conf-fill" style="width:0%"></div>
-            <div class="mark-tick" style="left:60%"></div>
-          </div>
-          <span class="val" id="conf-val">0.0%</span>
-        </div>
-
-        <p class="muted">
-          Threshold 60%. Simulated distribution, seeded by identity + typed phrase.
-        </p>
-
-        <div class="rule" style="margin:22px 0 14px">
-          <span class="section__label">Top matches</span>
-        </div>
-        <div class="barchart" id="prob-bars"></div>
-
-        <div class="btn-row">
-          <button class="btn secondary bare" type="button" id="reset">New attempt</button>
-        </div>
+      <div class="rule" style="margin:22px 0 14px">
+        <span class="section__label" id="result-label">Result</span>
+      </div>
+      <div class="panel" id="result-panel"></div>
+      <div class="btn-row">
+        <button class="btn secondary bare" type="button" id="again">New attempt</button>
+        <button class="btn secondary bare" type="button" id="startover" hidden>Start over</button>
       </div>
     </div>
   </main>
 
   <script>
-    import { KeystrokeCapture } from "../lib/keystroke.js";
-    import { verify, PASSPHRASE, THRESHOLD } from "../lib/verify.js";
+    import { PhraseCapture } from "../lib/features.js";
+    import { identify, enroll, verify, health } from "../lib/verify.js";
 
-    const users = JSON.parse(document.getElementById("users-data").textContent);
-    const phrase = document.getElementById("phrase");
-    const userSel = document.getElementById("user");
-    const caps = document.querySelectorAll("#keycaps span");
-    const waveBars = document.querySelectorAll("#wave i");
-    const count = document.getElementById("capture-count");
-    const form = document.getElementById("auth-form");
+    const ENROLL_TARGET = 10;
+    const el = (id) => document.getElementById(id);
 
-    const result = document.getElementById("result");
-    const verdictSlot = document.getElementById("verdict-slot");
-    const confFill = document.getElementById("conf-fill");
-    const confVal = document.getElementById("conf-val");
-    const probBars = document.getElementById("prob-bars");
+    const phrase = el("phrase");
+    const caps = Array.from(document.querySelectorAll("#keycaps span"));
+    const capCount = el("cap-count");
+    const modeBox = el("mode");
+    const modeBlurb = el("mode-blurb");
+    const enrollPanel = el("enroll-panel");
+    const enrollDone = el("enroll-done");
+    const nameField = el("enroll-name");
+    const result = el("result");
+    const resultLabel = el("result-label");
+    const resultPanel = el("result-panel");
+    const againBtn = el("again");
+    const startOverBtn = el("startover");
 
-    const capture = new KeystrokeCapture(phrase, PASSPHRASE, (snap) => {
-      snap.bars.forEach((v, i) => {
-        if (waveBars[i]) {
-          waveBars[i].style.height = Math.round(v * 100) + "%";
-          waveBars[i].classList.toggle("tip", v > 0 && i === snap.typedCount - 1);
-        }
-      });
-      caps.forEach((c, i) => c.classList.toggle("hot", i < snap.typedCount));
-      const n = Math.min(snap.typedCount, PASSPHRASE.length);
-      count.textContent = `${n} / ${PASSPHRASE.length} keys`;
+    let mode = "identify";
+    let enrollName = "";
+    let enrollSamples = [];
+    let enrolled = false;
+    let busy = false;
+
+    el("enroll-target").textContent = String(ENROLL_TARGET);
+    el("enroll-target2").textContent = String(ENROLL_TARGET);
+
+    health().then((ok) => {
+      const s = el("apistat");
+      s.classList.toggle("ok", ok);
+      s.classList.toggle("off", !ok);
+      el("apistat-text").textContent = ok
+        ? "API online"
+        : "API offline — start it locally, or wait for the service to wake";
     });
 
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const typed = phrase.value;
-      if (typed.trim() === "") {
-        phrase.focus();
+    const cap = new PhraseCapture(phrase, {
+      onProgress: (n) => {
+        caps.forEach((c, i) => c.classList.toggle("hot", i < n));
+        capCount.textContent = `${n} / 11`;
+      },
+      onAttempt: (features) => {
+        caps.forEach((c) => c.classList.add("hot"));
+        capCount.textContent = "11 / 11";
+        if (busy) return;
+        if (mode === "identify") runIdentify(features);
+        else runVerifyFlow(features);
+      },
+    });
+
+    function resetFlow() {
+      enrollName = "";
+      enrollSamples = [];
+      enrolled = false;
+      cap.reset();
+      caps.forEach((c) => c.classList.remove("hot"));
+      capCount.textContent = "0 / 11";
+      result.hidden = true;
+      startOverBtn.hidden = true;
+      enrollPanel.hidden = mode !== "verify";
+      nameField.disabled = false;
+      nameField.value = "";
+      enrollDone.textContent = "0";
+      modeBlurb.textContent =
+        mode === "identify"
+          ? "Identify — one attempt, and the LSTM names the closest of the 51 CMU typists."
+          : "Verify — enroll yourself, then one attempt is accepted or rejected against your profile.";
+      phrase.focus();
+    }
+
+    async function withBusy(fn) {
+      busy = true;
+      const slow = setTimeout(
+        () => showInfo("still working — the API may be waking up…"),
+        3000
+      );
+      try {
+        await fn();
+      } catch (err) {
+        showError(err);
+      } finally {
+        clearTimeout(slow);
+        busy = false;
+      }
+    }
+
+    function showInfo(msg) {
+      resultLabel.textContent = "···";
+      resultPanel.innerHTML = `<p class="muted">${msg}</p>`;
+      result.hidden = false;
+    }
+
+    function showError(err) {
+      resultLabel.textContent = "Error";
+      resultPanel.innerHTML = `<p class="muted">${(err && err.message) || err}</p>`;
+      result.hidden = false;
+      startOverBtn.hidden = mode !== "verify";
+    }
+
+    function runIdentify(features) {
+      withBusy(async () => {
+        showInfo("contacting the model…");
+        const r = await identify(features);
+        resultLabel.textContent = "Closest match";
+        resultPanel.innerHTML = `
+          <div class="verdict ok">
+            <span class="flag">Identify</span>
+            <div class="headline">${r.user}</div>
+            <div class="sub">${(r.confidence * 100).toFixed(1)}% · nearest of 51 CMU typists — similarity, not authentication</div>
+          </div>`;
+        result.hidden = false;
+        startOverBtn.hidden = true;
+      });
+    }
+
+    function runVerifyFlow(features) {
+      if (!enrolled) {
+        if (!enrollName) {
+          enrollName = (nameField.value || "").trim();
+          if (!enrollName) {
+            showError({ message: "enter a name before enrolling" });
+            return;
+          }
+          nameField.disabled = true;
+        }
+        enrollSamples.push(features);
+        enrollDone.textContent = String(enrollSamples.length);
+        if (enrollSamples.length < ENROLL_TARGET) return;
+
+        withBusy(async () => {
+          showInfo(`enrolling ${enrollName}…`);
+          const r = await enroll(enrollName, enrollSamples);
+          enrolled = true;
+          enrollPanel.hidden = true;
+          resultLabel.textContent = "Enrolled";
+          resultPanel.innerHTML = `
+            <div class="verdict ok">
+              <span class="flag">Profile ready</span>
+              <div class="headline">${r.name}</div>
+              <div class="sub">${r.samples} attempts · threshold ${r.threshold} — now type it once to verify</div>
+            </div>`;
+          result.hidden = false;
+          startOverBtn.hidden = false;
+        });
         return;
       }
-      const res = verify(userSel.value, typed, users);
 
-      verdictSlot.innerHTML = "";
-      const v = document.createElement("div");
-      v.className = "verdict " + (res.accepted ? "ok" : "no");
-      let reason;
-      if (!res.typedOk) reason = "passphrase does not match the enrolment phrase";
-      else if (res.predicted !== userSel.value)
-        reason = `typing pattern matched ${res.predicted}, not ${userSel.value}`;
-      else reason = "confidence below threshold";
-      v.innerHTML = res.accepted
-        ? `<span class="flag">Access granted</span>
-           <div class="headline">Accepted as ${res.predicted}</div>
-           <div class="sub">Match confidence ${(res.confidence * 100).toFixed(1)}% · threshold ${THRESHOLD * 100}%</div>`
-        : `<span class="flag">Access denied</span>
-           <div class="headline">Rejected</div>
-           <div class="sub">${reason[0].toUpperCase() + reason.slice(1)}. Best match ${res.predicted} at ${(res.confidence * 100).toFixed(1)}%.</div>`;
-      verdictSlot.appendChild(v);
+      withBusy(async () => {
+        showInfo("verifying…");
+        const r = await verify(enrollName, features);
+        const ok = r.accepted;
+        const span = r.threshold * 1.8 || 1;
+        resultLabel.textContent = "Result";
+        resultPanel.innerHTML = `
+          <div class="verdict ${ok ? "ok" : "no"}">
+            <span class="flag">${ok ? "Accepted" : "Rejected"}</span>
+            <div class="headline">${ok ? "It’s you" : "Not a match"}</div>
+            <div class="sub">distance ${r.distance} vs threshold ${r.threshold} · margin ${r.margin}</div>
+          </div>
+          <div class="meter mt-m">
+            <span>Distance</span>
+            <div class="track">
+              <div class="fill" style="width:${Math.min(100, (r.distance / span) * 100).toFixed(1)}%"></div>
+              <div class="mark-tick" style="left:${Math.min(100, (r.threshold / span) * 100).toFixed(1)}%"></div>
+            </div>
+            <span class="val">${r.distance}</span>
+          </div>
+          <p class="muted">Tick marks the accept threshold. Lower distance = closer to your enrolled profile.</p>`;
+        result.hidden = false;
+        startOverBtn.hidden = false;
+      });
+    }
 
-      const conf = Math.max(0, Math.min(1, res.confidence));
-      confFill.style.width = (conf * 100).toFixed(1) + "%";
-      confVal.textContent = (conf * 100).toFixed(1) + "%";
-
-      const ranked = Object.entries(res.probabilities)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10);
-      const top = ranked[0][1] || 1;
-      probBars.innerHTML = ranked
-        .map(([u, p]) => {
-          const w = Math.max(2, (p / top) * 100);
-          const hot = u === res.predicted;
-          return `<div class="bar${hot ? "" : " low"}">
-            <span class="cls">${u}</span>
-            <span class="lane"><i style="width:${w.toFixed(1)}%"></i></span>
-            <span class="num">${p.toFixed(3)}</span>
-          </div>`;
-        })
-        .join("");
-
-      result.hidden = false;
-      result.scrollIntoView({ behavior: "smooth", block: "start" });
+    modeBox.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b || busy) return;
+      mode = b.dataset.mode;
+      modeBox
+        .querySelectorAll("button")
+        .forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      resetFlow();
     });
 
-    document.getElementById("reset").addEventListener("click", () => {
-      phrase.value = "";
-      capture.reset();
-      caps.forEach((c) => c.classList.remove("hot"));
-      waveBars.forEach((b) => {
-        b.style.height = "6%";
-        b.classList.remove("tip");
-      });
-      count.textContent = `0 / ${PASSPHRASE.length} keys`;
+    againBtn.addEventListener("click", () => {
       result.hidden = true;
+      caps.forEach((c) => c.classList.remove("hot"));
+      capCount.textContent = "0 / 11";
+      cap.reset();
       phrase.focus();
     });
+
+    startOverBtn.addEventListener("click", resetFlow);
+
+    resetFlow();
   </script>
 
-  <script type="application/json" id="users-data" set:html={JSON.stringify(users)} is:inline></script>
-
   <style>
-    .authgrid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-      gap: 22px;
-      align-items: start;
+    #phrase {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--bone);
+      font-family: var(--f-mono);
+      font-size: 15px;
+      letter-spacing: 0.16em;
+      margin-bottom: 14px;
     }
-    @media (max-width: 780px) {
-      .authgrid { grid-template-columns: 1fr; }
+    #phrase:focus {
+      outline: none;
+      border-color: var(--flare);
+      box-shadow: 0 0 0 2px var(--flare-dim);
     }
-    #phrase { letter-spacing: 0.12em; }
+    .apistat {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--fog);
+    }
+    .apistat .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--fog);
+    }
+    .apistat.ok .dot { background: var(--ok); box-shadow: 0 0 8px 1px var(--ok); }
+    .apistat.off .dot { background: var(--bad); box-shadow: 0 0 8px 1px var(--bad); }
   </style>
 </Base>
