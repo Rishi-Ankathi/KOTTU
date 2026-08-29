@@ -1,0 +1,44 @@
+/* ==========================================================================
+   KOTTU - design tokens
+
+   One committed visual world: a technical instrument in near-black.
+   No light theme by design - every colour is still painted explicitly
+   from a token so the page holds on any host background.
+   ========================================================================== */
+
+:root {
+  /* ---- ground + structure ---- */
+  --ink:      #0B0B0C;   /* near-black ground, faint warm bias */
+  --panel:    #151417;   /* raised surface */
+  --panel-2:  #201F23;   /* keycap face / inset */
+  --line:     #2B2A2E;   /* hairlines + drawing grid */
+
+  /* ---- text ---- */
+  --bone:     #ECEAE3;   /* primary text, warm off-white */
+  --fog:      #95928A;   /* secondary / metadata (warm grey) */
+
+  /* ---- the one accent ---- */
+  --flare:      #F54F1B;
+  --flare-dim:  rgba(245, 79, 27, 0.07);
+  --flare-glow: rgba(245, 79, 27, 0.35);
+
+  /* ---- background grid ---- */
+  --grid: rgba(255, 255, 255, 0.028);
+
+  /* ---- semantic only (not the accent) ---- */
+  --ok:   #57D98A;
+  --bad:  #FF4D57;
+
+  /* ---- type ---- */
+  --f-display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo, monospace;
+
+  /* ---- metrics ---- */
+  --frame: 16px;   /* instrument bezel inset */
+  --maxw: 1320px;
+  --step: clamp(14px, 1.05vw, 16px);
+}
+
+@media (max-width: 620px) {
+  :root { --frame: 9px; }
+}

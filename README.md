@@ -17,7 +17,7 @@ KOTTU verifies a user's identity from *how* they type rather than *what* they ty
 - [Installation](#installation)
 - [Usage](#usage)
   - [Train the model](#train-the-model)
-  - [Run the web app](#run-the-web-app)
+  - [Web interface](#web-interface)
   - [Predict programmatically](#predict-programmatically)
   - [Run the tests](#run-the-tests)
 - [Configuration](#configuration)
@@ -34,7 +34,7 @@ Traditional authentication checks **what a user knows** (a password or PIN). KOT
 The repository contains two parts:
 
 1. **A training pipeline** (`src/`, `train.py`) — a modular, class‑based workflow that loads the keystroke dataset, preprocesses it, reshapes each sample into a short sequence, trains an LSTM classifier, evaluates it, and writes metrics and plots to `output/`.
-2. **A Streamlit web application** (`app.py`, `pages/`, `ui/`) — a multi‑page dashboard that presents the trained model's performance, an authentication screen, and project documentation.
+2. **A web interface** (`web/`) — a static [Astro](https://astro.build) site: a landing dashboard, an authentication screen with live in‑browser keystroke capture, an interactive model‑insights page, and project documentation. It reads the training artifacts from `output/` at build time and never imports the pipeline.
 
 ---
 
@@ -112,7 +112,6 @@ The full per‑class breakdown is in [`output/reports/classification_report.txt`
 
 ```
 KOTTU/
-├── app.py                     # Streamlit entry point (multi-page navigation)
 ├── train.py                   # Training entry point -> src.train.Trainer
 ├── requirements.txt
 │
@@ -141,16 +140,11 @@ KOTTU/
 │   ├── reports/classification_report.txt
 │   └── plots/{accuracy_curve,loss_curve,confusion_matrix}.png
 │
-├── pages/                     # Streamlit pages
-│   ├── dashboard.py           # Hero + headline metrics + quick links
-│   ├── authentication.py      # Authentication UI (model not yet wired in)
-│   ├── model_insights.py      # Metrics, training curves, confusion matrix, report
-│   └── about.py               # Project write-up
-│
-├── ui/
-│   ├── components.py          # load_css() helper
-│   ├── styles.css             # Global dark theme
-│   └── theme.py               # Design constants (colors, spacing, typography)
+├── web/                       # Astro static site (see web/README.md)
+│   ├── src/pages/             # index · authenticate · insights · about
+│   ├── src/lib/               # keystroke capture, verify() seam, report parser
+│   ├── src/data/              # metrics + report synced from ../output
+│   └── scripts/sync-data.mjs  # read-only copy of output/ artifacts into the site
 │
 └── tests/
     └── test_artifacts.py      # Unit tests for Evaluator and Visualizer outputs
@@ -189,20 +183,25 @@ python train.py
 
 This runs the full pipeline and regenerates every artifact in `models/` and `output/`.
 
-### Run the web app
+### Web interface
+
+Requires **Node 18+**. See [`web/README.md`](web/README.md) for details.
 
 ```bash
-streamlit run app.py
+cd web
+npm install
+npm run dev        # local dev server
+npm run build      # -> web/dist (static; runs sync-data first)
 ```
 
-The app opens with four pages:
+Four pages:
 
-- **Dashboard** — project hero banner, headline metrics read from `output/metrics/metrics.json`, and shortcuts to the other pages.
-- **Authentication** — the authentication interface. It currently demonstrates the UI only; the model is not connected to this page yet.
-- **Model Insights** — metric cards, the accuracy/loss curves, the confusion matrix, and the classification report.
-- **About** — project overview, motivation, tech stack, and roadmap.
+- **Dashboard** — headline metrics (read from `output/metrics/metrics.json` at build time) and entry points.
+- **Authenticate** — real in‑browser keystroke‑timing capture; the match verdict is a deterministic **simulation** behind the `verify()` seam in [`web/src/lib/verify.js`](web/src/lib/verify.js) (swap its body for a call to a prediction service to make it live).
+- **Model Insights** — metric cards, an interactive per‑class chart parsed from the classification report, and the training curves / confusion matrix as images.
+- **About** — how keystroke dynamics works, and the roadmap.
 
-> The Dashboard and Model Insights pages read files from `output/`, so run training at least once before starting the app.
+> `npm run sync` (run automatically before `build`) copies `output/` artifacts into the site. A current copy is committed, so the site builds without a training run.
 
 ### Predict programmatically
 
@@ -242,7 +241,7 @@ Common knobs, and where to change them:
 | Epochs, batch size, early-stopping patience | [`src/train.py`](src/train.py) |
 | Sequence shape (`11 × 3`) | [`src/sequence_generator.py`](src/sequence_generator.py) and [`src/predict.py`](src/predict.py) |
 | Dataset path | [`src/data_loader.py`](src/data_loader.py) |
-| App colors, typography, spacing | [`ui/theme.py`](ui/theme.py) and [`ui/styles.css`](ui/styles.css) |
+| Site colors, typography, layout | [`web/src/styles/tokens.css`](web/src/styles/tokens.css) and [`web/src/styles/app.css`](web/src/styles/app.css) |
 
 ---
 
@@ -270,14 +269,14 @@ Produced by `python train.py`:
 - **Data:** pandas, NumPy
 - **Visualization:** matplotlib (`Agg` backend)
 - **Persistence:** joblib, Keras native format
-- **Web app:** Streamlit (multi‑page via `st.navigation` / `st.Page`)
+- **Web interface:** Astro (static output), vanilla ES‑module JS, hand‑rolled CSS / SVG for charts
 
 ---
 
 ## Roadmap
 
-- Wire the trained model into the **Authentication** page for live predictions.
-- Real‑time keystroke capture in the browser.
+- Expose a thin prediction service and wire it into the `verify()` seam so the **Authenticate** page runs the real model.
+- Export raw training history and the confusion matrix so those charts can be rebuilt natively instead of shown as images.
 - Continuous (session‑long) authentication.
 - Support for larger user groups and stronger architectures.
 - Deployment as a cloud authentication service.

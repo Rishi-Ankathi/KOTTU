@@ -1,0 +1,155 @@
+---
+import Base from "../layouts/Base.astro";
+import SectionRule from "../components/SectionRule.astro";
+import MetricCards from "../components/MetricCards.astro";
+import metrics from "../data/metrics.json";
+import reportText from "../data/classification_report.txt?raw";
+import { parseReport } from "../lib/report.js";
+
+const pct = (x) => (x * 100).toFixed(2) + "%";
+const rows = parseReport(reportText);
+const worst = [...rows].sort((a, b) => a.f1 - b.f1).slice(0, 5);
+
+const cards = [
+  { label: "Accuracy", value: pct(metrics.accuracy) },
+  { label: "Precision", value: pct(metrics.precision) },
+  { label: "Recall", value: pct(metrics.recall) },
+  { label: "F1 Score", value: pct(metrics.f1_score) },
+];
+
+const plots = [
+  { src: "/plots/accuracy_curve.png", cap: "Accuracy curve" },
+  { src: "/plots/loss_curve.png", cap: "Loss curve" },
+];
+---
+
+<Base title="Model Insights" active="Model Insights">
+  <main class="pagehead">
+    <span class="eyebrow">Evaluation · held-out test set</span>
+    <h1 class="display">What the model<br />gets right.</h1>
+
+    <SectionRule label="Overview" />
+    <MetricCards items={cards} />
+
+    <SectionRule label="By class" />
+    <div class="toggle" id="metric-toggle" role="group" aria-label="Metric">
+      <button data-k="f1" aria-pressed="true">F1</button>
+      <button data-k="precision" aria-pressed="false">Precision</button>
+      <button data-k="recall" aria-pressed="false">Recall</button>
+    </div>
+    <div class="scrollbox"><div class="barchart" id="class-bars"></div></div>
+    <p class="muted mt-s">
+      Sorted worst → best. Bars under 0.75 are dimmed. {rows.length} classes, 80 test samples each.
+    </p>
+
+    <div class="rule" style="margin:26px 0 14px">
+      <span class="section__label">Lowest F1</span>
+    </div>
+    <div class="tablewrap">
+      <table class="report">
+        <thead>
+          <tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr>
+        </thead>
+        <tbody>
+          {
+            worst.map((r) => (
+              <tr>
+                <td>{r.cls}</td>
+                <td>{r.precision.toFixed(4)}</td>
+                <td>{r.recall.toFixed(4)}</td>
+                <td>{r.f1.toFixed(4)}</td>
+                <td>{r.support}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <SectionRule label="Artifacts" />
+    <p class="muted">
+      Rendered during training. Interactive versions need the raw history and
+      matrix exported by the pipeline.
+    </p>
+
+    <div class="grid2 mt-m">
+      {
+        plots.map((p) => (
+          <figure class="imgcard">
+            <img src={p.src} alt={p.cap} loading="lazy" />
+            <figcaption>{p.cap}</figcaption>
+          </figure>
+        ))
+      }
+    </div>
+
+    <figure class="imgcard mt-m">
+      <img src="/plots/confusion_matrix.png" alt="Confusion matrix, 51 by 51" loading="lazy" />
+      <figcaption>Confusion matrix · 51 × 51</figcaption>
+    </figure>
+
+    <div class="rule" style="margin:26px 0 14px">
+      <span class="section__label">Full classification report</span>
+    </div>
+    <div class="tablewrap capped">
+      <table class="report">
+        <thead>
+          <tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr>
+        </thead>
+        <tbody>
+          {
+            rows.map((r) => (
+              <tr>
+                <td>{r.cls}</td>
+                <td>{r.precision.toFixed(4)}</td>
+                <td>{r.recall.toFixed(4)}</td>
+                <td>{r.f1.toFixed(4)}</td>
+                <td>{r.support}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <details class="raw">
+      <summary>Raw report text</summary>
+      <pre>{reportText}</pre>
+    </details>
+  </main>
+
+  <script type="application/json" id="rows-data" set:html={JSON.stringify(rows)} is:inline></script>
+  <script>
+    const rows = JSON.parse(document.getElementById("rows-data").textContent);
+    const host = document.getElementById("class-bars");
+    const toggle = document.getElementById("metric-toggle");
+    let key = "f1";
+
+    function render() {
+      const sorted = [...rows].sort((a, b) => a[key] - b[key]);
+      host.innerHTML = sorted
+        .map((r) => {
+          const v = r[key];
+          const low = v < 0.75;
+          return `<div class="bar${low ? " low" : ""}">
+            <span class="cls">${r.cls}</span>
+            <span class="lane"><i style="width:${(v * 100).toFixed(1)}%"></i></span>
+            <span class="num">${v.toFixed(3)}</span>
+          </div>`;
+        })
+        .join("");
+    }
+
+    toggle.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      key = btn.dataset.k;
+      toggle
+        .querySelectorAll("button")
+        .forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+      render();
+    });
+
+    render();
+  </script>
+</Base>

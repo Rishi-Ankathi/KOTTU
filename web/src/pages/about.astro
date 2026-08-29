@@ -1,0 +1,77 @@
+---
+import Base from "../layouts/Base.astro";
+import SectionRule from "../components/SectionRule.astro";
+---
+
+<Base title="About" active="About">
+  <main class="pagehead">
+    <span class="eyebrow">About</span>
+    <h1 class="display">How a keyboard<br />becomes a signature.</h1>
+
+    <div class="prose mt-l">
+      <SectionRule label="Overview" />
+      <p>
+        <b>KOTTU</b> is a behavioral authentication system. It verifies a person’s
+        identity from their unique typing patterns rather than relying on the
+        password alone.
+      </p>
+      <p>
+        It analyses keystroke dynamics — how long each key is held, and the
+        timing between consecutive keystrokes — across a fixed passphrase. A
+        recurrent neural network reads those rhythms and recognises the typist.
+      </p>
+
+      <SectionRule label="Why it holds up" />
+      <p>
+        Traditional authentication checks <b>what a person knows</b>: a password
+        or PIN. KOTTU adds a check on <b>how they type</b> it. Typing rhythm is
+        specific to an individual and difficult to reproduce, so an attacker who
+        knows the password still can’t reproduce the cadence behind it.
+      </p>
+      <p>
+        The same signal extends to continuous authentication — verifying a person
+        throughout a session, not only at login.
+      </p>
+
+      <SectionRule label="How it works" />
+      <div class="grid2">
+        <div>
+          <h3>Data</h3>
+          <p>
+            CMU DSL-StrongPasswordData: 51 subjects, each typing
+            <code>.tie5Roanl</code> 400 times. 31 timing features per attempt —
+            hold times and down-down / up-down gaps.
+          </p>
+          <h3>Model</h3>
+          <p>
+            Each attempt is reshaped into an 11-step sequence and read by a
+            two-layer LSTM with dropout, ending in a 51-way softmax over the
+            enrolled identities.
+          </p>
+        </div>
+        <div>
+          <h3>Training</h3>
+          <p>
+            Stratified 64 / 16 / 20 split, standardised features, up to 30 epochs
+            with early stopping on validation loss.
+          </p>
+          <h3>Evaluation</h3>
+          <p>
+            Weighted accuracy, precision, recall and F1 on a 4,080-sample
+            held-out set, plus a per-class report and confusion matrix.
+          </p>
+        </div>
+      </div>
+
+      <SectionRule label="Next" />
+      <ul>
+        <li>Wire the trained model into the Authenticate screen for live scoring</li>
+        <li>Export raw training history and the confusion matrix for native charts</li>
+        <li>Continuous, session-long authentication</li>
+        <li>Larger rosters and stronger sequence models</li>
+      </ul>
+    </div>
+
+    <p class="muted mt-l">KOTTU v1.0 · Behavioral Authentication System</p>
+  </main>
+</Base>

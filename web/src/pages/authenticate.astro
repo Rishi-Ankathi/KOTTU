@@ -1,0 +1,196 @@
+---
+import Base from "../layouts/Base.astro";
+import SectionRule from "../components/SectionRule.astro";
+import users from "../data/enrolled-users.json";
+
+const keys = [".", "t", "i", "e", "5", "R", "o", "a", "n", "l"];
+---
+
+<Base title="Authenticate" active="Authenticate">
+  <main class="pagehead">
+    <span class="eyebrow">Attempt</span>
+    <h1 class="display">Prove it’s you<br />by how you type.</h1>
+
+    <p class="note mt-m">
+      Preview — the trained model isn’t wired into this page. Your keystroke
+      timing is captured for real; the match verdict is simulated behind a
+      single swap point.
+    </p>
+
+    <div class="authgrid mt-l">
+      <form id="auth-form" autocomplete="off">
+        <label class="field">
+          <span>Enrolled identity</span>
+          <select id="user">
+            {users.map((u) => <option value={u}>{u}</option>)}
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Passphrase — type <code>.tie5Roanl</code></span>
+          <input id="phrase" type="text" spellcheck="false" placeholder=".tie5Roanl" />
+        </label>
+
+        <div class="btn-row">
+          <button class="btn block bare" type="submit">Authenticate</button>
+        </div>
+      </form>
+
+      <section class="trace" aria-label="Live keystroke trace">
+        <div class="tlabel">
+          <span>Live capture</span>
+          <span id="capture-count">0 / 11 keys</span>
+        </div>
+        <div class="keys" id="keycaps">
+          {keys.map((k) => <span>{k}</span>)}
+          <span class="rtn">return</span>
+        </div>
+        <div class="wave" id="wave" aria-hidden="true">
+          {keys.concat(["r"]).map(() => <i style="height:6%"></i>)}
+        </div>
+        <p class="muted mt-s" id="capture-hint">
+          Hold time (H) and key-to-key gaps (DD / UD) are measured as you type.
+        </p>
+      </section>
+    </div>
+
+    <div id="result" hidden>
+      <SectionRule label="Result" />
+
+      <div class="panel">
+        <div id="verdict-slot"></div>
+
+        <div class="meter mt-m">
+          <span>Confidence</span>
+          <div class="track">
+            <div class="fill" id="conf-fill" style="width:0%"></div>
+            <div class="mark-tick" style="left:60%"></div>
+          </div>
+          <span class="val" id="conf-val">0.0%</span>
+        </div>
+
+        <p class="muted">
+          Threshold 60%. Simulated distribution, seeded by identity + typed phrase.
+        </p>
+
+        <div class="rule" style="margin:22px 0 14px">
+          <span class="section__label">Top matches</span>
+        </div>
+        <div class="barchart" id="prob-bars"></div>
+
+        <div class="btn-row">
+          <button class="btn secondary bare" type="button" id="reset">New attempt</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    import { KeystrokeCapture } from "../lib/keystroke.js";
+    import { verify, PASSPHRASE, THRESHOLD } from "../lib/verify.js";
+
+    const users = JSON.parse(document.getElementById("users-data").textContent);
+    const phrase = document.getElementById("phrase");
+    const userSel = document.getElementById("user");
+    const caps = document.querySelectorAll("#keycaps span");
+    const waveBars = document.querySelectorAll("#wave i");
+    const count = document.getElementById("capture-count");
+    const form = document.getElementById("auth-form");
+
+    const result = document.getElementById("result");
+    const verdictSlot = document.getElementById("verdict-slot");
+    const confFill = document.getElementById("conf-fill");
+    const confVal = document.getElementById("conf-val");
+    const probBars = document.getElementById("prob-bars");
+
+    const capture = new KeystrokeCapture(phrase, PASSPHRASE, (snap) => {
+      snap.bars.forEach((v, i) => {
+        if (waveBars[i]) {
+          waveBars[i].style.height = Math.round(v * 100) + "%";
+          waveBars[i].classList.toggle("tip", v > 0 && i === snap.typedCount - 1);
+        }
+      });
+      caps.forEach((c, i) => c.classList.toggle("hot", i < snap.typedCount));
+      const n = Math.min(snap.typedCount, PASSPHRASE.length);
+      count.textContent = `${n} / ${PASSPHRASE.length} keys`;
+    });
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const typed = phrase.value;
+      if (typed.trim() === "") {
+        phrase.focus();
+        return;
+      }
+      const res = verify(userSel.value, typed, users);
+
+      verdictSlot.innerHTML = "";
+      const v = document.createElement("div");
+      v.className = "verdict " + (res.accepted ? "ok" : "no");
+      let reason;
+      if (!res.typedOk) reason = "passphrase does not match the enrolment phrase";
+      else if (res.predicted !== userSel.value)
+        reason = `typing pattern matched ${res.predicted}, not ${userSel.value}`;
+      else reason = "confidence below threshold";
+      v.innerHTML = res.accepted
+        ? `<span class="flag">Access granted</span>
+           <div class="headline">Accepted as ${res.predicted}</div>
+           <div class="sub">Match confidence ${(res.confidence * 100).toFixed(1)}% · threshold ${THRESHOLD * 100}%</div>`
+        : `<span class="flag">Access denied</span>
+           <div class="headline">Rejected</div>
+           <div class="sub">${reason[0].toUpperCase() + reason.slice(1)}. Best match ${res.predicted} at ${(res.confidence * 100).toFixed(1)}%.</div>`;
+      verdictSlot.appendChild(v);
+
+      const conf = Math.max(0, Math.min(1, res.confidence));
+      confFill.style.width = (conf * 100).toFixed(1) + "%";
+      confVal.textContent = (conf * 100).toFixed(1) + "%";
+
+      const ranked = Object.entries(res.probabilities)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+      const top = ranked[0][1] || 1;
+      probBars.innerHTML = ranked
+        .map(([u, p]) => {
+          const w = Math.max(2, (p / top) * 100);
+          const hot = u === res.predicted;
+          return `<div class="bar${hot ? "" : " low"}">
+            <span class="cls">${u}</span>
+            <span class="lane"><i style="width:${w.toFixed(1)}%"></i></span>
+            <span class="num">${p.toFixed(3)}</span>
+          </div>`;
+        })
+        .join("");
+
+      result.hidden = false;
+      result.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    document.getElementById("reset").addEventListener("click", () => {
+      phrase.value = "";
+      capture.reset();
+      caps.forEach((c) => c.classList.remove("hot"));
+      waveBars.forEach((b) => {
+        b.style.height = "6%";
+        b.classList.remove("tip");
+      });
+      count.textContent = `0 / ${PASSPHRASE.length} keys`;
+      result.hidden = true;
+      phrase.focus();
+    });
+  </script>
+
+  <script type="application/json" id="users-data" set:html={JSON.stringify(users)} is:inline></script>
+
+  <style>
+    .authgrid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+      gap: 22px;
+      align-items: start;
+    }
+    @media (max-width: 780px) {
+      .authgrid { grid-template-columns: 1fr; }
+    }
+    #phrase { letter-spacing: 0.12em; }
+  </style>
+</Base>

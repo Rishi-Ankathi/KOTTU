@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Node / Astro (web/)
+web/node_modules/
+web/dist/
+web/.astro/
+npm-debug.log*

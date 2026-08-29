@@ -1,0 +1,15 @@
+---
+// items: [{ label, value }]
+const { items } = Astro.props;
+---
+
+<div class="cards">
+  {
+    items.map((it) => (
+      <div class="card">
+        <b>{it.label}</b>
+        <strong>{it.value}</strong>
+      </div>
+    ))
+  }
+</div>

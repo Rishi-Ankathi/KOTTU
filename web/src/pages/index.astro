@@ -1,0 +1,140 @@
+---
+import Base from "../layouts/Base.astro";
+import metrics from "../data/metrics.json";
+
+const REPO = "https://github.com/Rishi-Ankathi/KOTTU";
+const pct = (x) => (x * 100).toFixed(2);
+const keys = [".", "t", "i", "e", "5", "R", "o", "a", "n", "l"];
+---
+
+<Base title={null} active="Dashboard">
+  <section class="hero">
+    <span class="eyebrow">Keystroke-dynamics authentication</span>
+
+    <h1 class="display hero-h1">
+      Identity,<br />measured in<br /><span style="color:var(--flare)">milliseconds</span>.
+    </h1>
+
+    <p class="lede mt-m">
+      KOTTU verifies a person from the micro-timing of <b>how</b> they type a
+      passphrase — hold times and the gaps between keys — not the password
+      itself. A recurrent network reads the rhythm and names the typist.
+    </p>
+
+    <div class="btn-row">
+      <a class="btn" href="#try">Try it</a>
+      <a class="btn secondary ext" href={REPO}>GitHub</a>
+    </div>
+  </section>
+
+  <div class="head" id="try"><h2>Type it. Watch your rhythm.</h2></div>
+  <section class="trace" aria-label="Live keystroke capture">
+    <div class="tlabel">
+      <span>Live capture</span>
+      <span id="cap-status">0 / 11 keys</span>
+    </div>
+    <input
+      id="cap"
+      type="text"
+      spellcheck="false"
+      autocomplete="off"
+      placeholder=".tie5Roanl"
+      aria-label="Type the passphrase dot t i e five R o a n l"
+    />
+    <div class="keys" id="cap-keys">
+      {keys.map((k) => <span>{k}</span>)}
+      <span class="rtn">return</span>
+    </div>
+    <div class="wave" id="cap-wave" aria-hidden="true">
+      {[...keys, "r"].map(() => <i></i>)}
+    </div>
+    <p class="cap-done" id="cap-done" hidden>
+      <b>That trace is your signature.</b> No two people space these eleven keys
+      the same way — the full attempt scores it against every enrolled typist.
+    </p>
+  </section>
+
+  <div class="head"><h2>The result</h2></div>
+  <div class="result">
+    <div class="bignum">{pct(metrics.accuracy)}<small>%</small></div>
+    <div class="bigmeta">
+      <span class="a">Accuracy — 51-way, held-out test set</span>
+      <span class="b">
+        4,080 attempts · precision {pct(metrics.precision)}% · recall {pct(metrics.recall)}% ·
+        F1 {pct(metrics.f1_score)}%
+      </span>
+      <span class="b">51 people, the same 10-character passphrase.</span>
+    </div>
+  </div>
+
+  <div class="head"><h2>How it works</h2></div>
+  <div class="steps">
+    <div class="step">
+      <span class="n">01 / CAPTURE</span>
+      <h3>Time every key</h3>
+      <p>How long each key is held, and the gap to the next one. Thirty-one numbers per attempt.</p>
+    </div>
+    <div class="step">
+      <span class="n">02 / SEQUENCE</span>
+      <h3>Reshape to a signal</h3>
+      <p>Those numbers become eleven ordered time-steps — one short waveform.</p>
+    </div>
+    <div class="step">
+      <span class="n">03 / IDENTIFY</span>
+      <h3>Score against everyone</h3>
+      <p>A two-layer LSTM rates the waveform against all 51 enrolled typists and returns the best match with a confidence.</p>
+    </div>
+  </div>
+
+  <p class="note mt-l">
+    The demo verdict is <b>simulated</b> — the trained model isn’t wired to the
+    browser yet. The number above is real, from the last training run.
+  </p>
+</Base>
+
+<script>
+  const input = document.getElementById("cap");
+  const caps = Array.from(document.querySelectorAll("#cap-keys span"));
+  const bars = Array.from(document.querySelectorAll("#cap-wave i"));
+  const statusEl = document.getElementById("cap-status");
+  const doneEl = document.getElementById("cap-done");
+  let downs = [], ups = [], holds = [];
+
+  const reset = () => { downs = []; ups = []; holds = []; draw(); };
+  const printable = (e) => e.key.length === 1 || e.key === "Enter";
+
+  input.addEventListener("keydown", (e) => {
+    if (e.repeat || !printable(e)) return;
+    if (input.value.length === 0) reset();
+    downs.push(performance.now());
+    draw();
+  });
+  input.addEventListener("keyup", (e) => {
+    if (!printable(e)) return;
+    const t = performance.now();
+    ups.push(t);
+    const i = ups.length - 1;
+    if (downs[i] != null) holds[i] = t - downs[i];
+    draw();
+  });
+
+  function draw() {
+    const flights = [];
+    for (let i = 1; i < downs.length; i++) flights.push(downs[i] - downs[i - 1]);
+    const vals = [...holds, ...flights].filter((x) => x > 0);
+    const max = vals.length ? Math.max(...vals) : 1;
+    for (let k = 0; k < 11; k++) {
+      const h = holds[k];
+      const f = k > 0 ? flights[k - 1] : null;
+      const v = h != null ? h : f;
+      bars[k].style.height = v != null ? Math.max(6, Math.min(100, (v / max) * 100)) + "%" : "6%";
+      bars[k].classList.toggle("tip", v != null && k === Math.min(downs.length, 11) - 1);
+      if (caps[k]) caps[k].classList.toggle("hot", k < downs.length);
+    }
+    const n = Math.min(downs.length, 11);
+    statusEl.textContent = n >= 11 ? "captured · 11 / 11" : n + " / 11 keys";
+    doneEl.hidden = n < 11;
+  }
+
+  reset();
+</script>
