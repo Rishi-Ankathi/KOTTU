@@ -164,14 +164,53 @@ Tested locally with uvicorn: all endpoints behave; `src/` untouched.
 
 ---
 
+## Phase 11 — browser capture bridge
+
+The Authenticate page wired to the real API.
+
+- `web/src/lib/features.js` — `extractFeatures` builds the 31 CMU features in the
+  exact column order (ms → s, `UD` keeps its sign, Shift+R timed as the `r` key);
+  `PhraseCapture` wraps the input and fires one attempt per clean run of the
+  passphrase, resetting on any typo or Backspace.
+- `web/src/lib/verify.js` — the simulation removed; now a `fetch` client for
+  `/identify`, `/enroll`, `/verify`, `/health`. API base from `PUBLIC_KOTTU_API`
+  with a localhost fallback. Typed `ApiError`.
+- `web/src/pages/authenticate.astro` — rebuilt with two modes: **Identify** (one
+  attempt → the LSTM names the closest of 51 CMU typists) and **Verify** (name +
+  ~10 enrolment attempts → then accept / reject against the profile, with
+  distance / threshold / margin shown). API status indicator; on-page caveats
+  about timer resolution, ≈9% error, in-memory profiles, and cold starts.
+- Verified: `extractFeatures` on synthetic keystrokes → dataset-range features;
+  the full chain through `verify.js` against a running API. **Not yet exercised
+  in a real browser** — capture with real timer resolution / a real keyboard is
+  the open validation item (AUTH_PLAN step B2).
+
+## Phase 12 — deployment config
+
+Files so deploying is copy-paste; the account actions are still manual.
+
+- `deploy/hf-space/` — root `Dockerfile`, HF-frontmatter `README.md`, and
+  `populate.mjs`, which vendors `api/ src/ models/` + `requirements.txt` into a
+  Hugging Face Space checkout (plain file copy, no nested git).
+- `web/netlify.toml`, `web/.env.example`.
+- `.github/workflows/keepalive.yml` — pings `/health` every 10 min so the free
+  Space never sleeps.
+- `.gitignore` — `web/.env*`.
+
+Pending: a proposed env-driven CORS change in `api/main.py` (lock `allow_origins`
+to the real site in production) — awaiting approval.
+
 ## Current state
 
-- `web/` — Astro static site, four pages, landing = the approved hybrid. The
-  Authenticate page still shows the *simulated* verdict.
-- `api/` — FastAPI service, working locally; not yet containerised or deployed.
+- `web/` — Astro static site, four pages. Authenticate now calls the real API
+  (Identify + Verify); needs a live browser + running API to exercise end to end.
+- `api/` — FastAPI service, working locally; container + deploy files ready, not
+  yet pushed to a Space.
 - Backend pipeline (`src/`, `train.py`, `tests/`) unchanged throughout.
-- Committed through `e01bbb2`. `api/` and this `docs/` folder are uncommitted.
+- Committed through `f2d3e39` (API + Docker + docs). Uncommitted: Phase 11 web
+  changes, Phase 12 deploy config.
 
 ## Next
 
-See [`docs/AUTH_PLAN.md`](AUTH_PLAN.md).
+Deployment (create the Space + Netlify site + repo variable), the CORS change,
+and the Part D follow-ups in [`docs/AUTH_PLAN.md`](AUTH_PLAN.md).

@@ -1,9 +1,22 @@
 # Authentication feature — implementation plan
 
 Two capabilities, one FastAPI service, deployed on a Hugging Face Space. `src/`
-is reused as-is. The API contract (`/identify`, `/enroll`, `/verify`, `/health`)
-is already built and tested locally — everything below is the path from there to
-live.
+is reused as-is.
+
+## Status
+
+- **A. Containerise** — done. `api/Dockerfile`, `.dockerignore`. (Not built
+  locally — Docker isn't installed here; HF builds it.)
+- **B. Browser bridge** — done in code (`web/src/lib/features.js`,
+  `web/src/lib/verify.js`, `web/src/pages/authenticate.astro`), tested piecewise.
+  **Open: B2** — validate browser-captured features against the dataset in a real
+  browser; may need `THRESHOLD_K` re-tuned for live timer resolution.
+- **C. Deploy** — config files done (`deploy/hf-space/`, `web/netlify.toml`,
+  `web/.env.example`, `.github/workflows/keepalive.yml`). The account actions
+  (create the Space, the Netlify site, the `KOTTU_API_URL` repo variable) are
+  manual and still to do.
+- **CORS** — proposed env-driven change to `api/main.py`, awaiting approval.
+- **D. Follow-ups** — not started.
 
 ---
 
