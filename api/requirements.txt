@@ -1,0 +1,11 @@
+# KOTTU API - runtime deps only (no matplotlib/pandas from the training env).
+# TensorFlow is pinned to the version the model was saved with; loading a
+# .keras file across major TF versions is fragile.
+
+fastapi
+uvicorn[standard]
+
+tensorflow-cpu==2.15.1
+scikit-learn==1.5.0
+numpy==1.24.3
+joblib

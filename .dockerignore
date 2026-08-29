@@ -1,0 +1,15 @@
+# The image only needs api/, src/, models/. Everything else is excluded so the
+# build context stays small and fast to send to the Docker daemon.
+
+.git/
+web/
+data/
+output/
+docs/
+tests/
+train.py
+*.md
+.venv/
+venv/
+**/__pycache__/
+**/*.pyc
