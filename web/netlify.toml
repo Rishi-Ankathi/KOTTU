@@ -8,7 +8,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
-  # Python isn't used to build this site - Netlify just scans the whole repo
-  # and finds requirements.txt (the ML pipeline / api/). Pin it so Netlify
-  # doesn't reach for a newer version it doesn't support instead of skipping it.
-  PYTHON_VERSION = "3.11"
+  # Python isn't used to build this site, but Netlify's build tool (mise)
+  # scans the whole repo, finds requirements.txt (the ML pipeline / api/),
+  # and defaults to the newest Python - which has no TensorFlow wheel yet.
+  # The authoritative pin for mise is the root .python-version file; this is
+  # kept in sync as a backup for anything that still reads the env var.
+  PYTHON_VERSION = "3.12"
