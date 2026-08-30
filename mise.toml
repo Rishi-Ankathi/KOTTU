@@ -1,0 +1,9 @@
+# Netlify's build image uses mise to pick tool versions, and scans this repo
+# for requirements.txt (from the ML pipeline / api/) even though the site
+# build (web/) needs neither Python nor those packages. Without a pin it
+# defaults to the newest Python, which has no TensorFlow wheel yet - pin one
+# that does. (.python-version at the repo root is kept as a second pin; this
+# mise.toml is the format mise is guaranteed to read.)
+
+[tools]
+python = "3.12"
