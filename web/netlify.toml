@@ -8,3 +8,7 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Python isn't used to build this site - Netlify just scans the whole repo
+  # and finds requirements.txt (the ML pipeline / api/). Pin it so Netlify
+  # doesn't reach for a newer version it doesn't support instead of skipping it.
+  PYTHON_VERSION = "3.11"
