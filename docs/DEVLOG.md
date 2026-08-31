@@ -235,21 +235,24 @@ unchanged.
 - `src/`, `train.py`, `tests/` untouched; `src/predict.py` stays as the
   training-side reference. Test suite green.
 
-Target host: Koyeb free tier (no card, always-on) — pending. On an always-on
-host the keepalive workflow is unnecessary and should be disabled/removed.
+Target host: **Render** free web service. Koyeb was the first choice but its
+free tier disappeared when it was acquired by Mistral. Render's free instance
+needs no card but sleeps after 15 min idle, so the `keepalive.yml` workflow
+stays active (repo variable `KOTTU_API_URL` = the Render URL). The Dockerfile
+CMD honours `$PORT` (Render assigns it at runtime) and falls back to 7860.
 
 ## Current state
 
 - `web/` — Astro static site, four pages, deployed on Netlify. Authenticate
   calls the real API; needs a live browser + running API end to end.
 - `api/` — FastAPI service, TF-Lite serving path, works locally (all endpoints
-  smoke-tested, parity verified). Not yet deployed to a host.
+  smoke-tested, parity verified). Deploying to Render.
 - Backend pipeline (`src/`, `train.py`, `tests/`) unchanged throughout.
-- Committed through `40a37a0`. Uncommitted: Phase 13 (TF-Lite slim).
+- Committed through `40a37a0`. Uncommitted: Phase 13 (TF-Lite slim + `$PORT`).
 
 ## Next
 
-Pick a host (Koyeb, else Render) and deploy `api/`; point the Netlify site's
-`PUBLIC_KOTTU_API` at it; disable the keepalive workflow if the host is
-always-on. Then the CORS change and the Part D follow-ups in
-[`docs/AUTH_PLAN.md`](AUTH_PLAN.md).
+Deploy `api/` to Render (Docker, `api/Dockerfile`, context = repo root); set
+`PUBLIC_KOTTU_API` on Netlify to the Render URL and redeploy the site; set repo
+variable `KOTTU_API_URL` and keep `keepalive.yml` enabled. Then the CORS change
+and the Part D follow-ups in [`docs/AUTH_PLAN.md`](AUTH_PLAN.md).

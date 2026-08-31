@@ -32,7 +32,9 @@ ENV PYTHONUNBUFFERED=1
 # Unbuffered stdout so container logs appear immediately.
 
 EXPOSE 7860
-# Documentation; also the port Hugging Face Spaces expects.
+# Default port (Hugging Face Spaces expects 7860). Hosts that assign a port at
+# runtime - Render, Cloud Run - set $PORT, which the command below honours.
 
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "7860"]
-# 0.0.0.0 = listen on every interface (required inside a container).
+CMD ["sh", "-c", "exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
+# 0.0.0.0 = listen on every interface (required inside a container); exec so
+# uvicorn becomes PID 1 and receives stop signals directly.

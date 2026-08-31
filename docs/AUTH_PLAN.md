@@ -15,13 +15,13 @@ is reused as-is.
   `web/src/lib/verify.js`, `web/src/pages/authenticate.astro`), tested piecewise.
   **Open: B2** — validate browser-captured features against the dataset in a real
   browser; may need `THRESHOLD_K` re-tuned for live timer resolution.
-- **C. Deploy** — the static site is live on Netlify. The API host is open:
-  Hugging Face's Docker SDK is not free, so the current target is Koyeb's free
-  tier (no card, always-on), with Render as the fallback. `deploy/hf-space/`
-  still works if a Space is ever wanted. Remaining account actions: create the
-  API host, set `PUBLIC_KOTTU_API` on Netlify, and — only if the host sleeps —
-  set `KOTTU_API_URL` and keep the keepalive workflow; on an always-on host,
-  disable it.
+- **C. Deploy** — the static site is live on Netlify. API host: **Render** free
+  web service (Koyeb's free tier was withdrawn after the Mistral acquisition;
+  HF's Docker SDK is not free). Render needs no card but sleeps after 15 min, so
+  `keepalive.yml` stays enabled with repo variable `KOTTU_API_URL`.
+  `deploy/hf-space/` still works if a Space is ever wanted. Remaining account
+  actions: create the Render service, set `PUBLIC_KOTTU_API` on Netlify, set
+  `KOTTU_API_URL` on GitHub.
 - **CORS** — proposed env-driven change to `api/main.py`, awaiting approval.
 - **D. Follow-ups** — not started.
 
