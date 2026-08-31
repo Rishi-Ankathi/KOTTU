@@ -2,11 +2,12 @@
 Enrollment + verification.
 
 No model. The 31 timing features are first put on a common scale with the same
-StandardScaler the classifier uses (models/scaler.pkl), so every feature is
-population unit-variance. A person's profile is then their per-feature mean and
-std in that space - a consistent typist has std well below 1. Distance for a new
-attempt is a clipped RMS z-score against the profile; the accept threshold is
-calibrated leave-one-out from the enrollment attempts.
+StandardScaler the classifier uses (its mean/std, exported to
+models/serving_params.json), so every feature is population unit-variance. A
+person's profile is then their per-feature mean and std in that space - a
+consistent typist has std well below 1. Distance for a new attempt is a clipped
+RMS z-score against the profile; the accept threshold is calibrated
+leave-one-out from the enrollment attempts.
 
 Calibrated on the CMU benchmark (~15 enrollment attempts / subject): roughly 9%
 false-reject and 9% false-accept. Keystroke dynamics on a single short phrase is
@@ -15,20 +16,16 @@ a soft signal - this is a demonstrator, not a lock.
 
 from __future__ import annotations
 
-import warnings
+import json
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-import joblib
 import numpy as np
 
-# the scaler was fit on a DataFrame; transforming a plain array is fine but noisy
-warnings.filterwarnings(
-    "ignore", message="X does not have valid feature names", category=UserWarning
-)
-
-_SCALER_PATH = Path(__file__).resolve().parent.parent / "models" / "scaler.pkl"
+# StandardScaler statistics, exported from scaler.pkl by scripts/export_serving.py
+# so this module needs neither joblib nor scikit-learn at runtime.
+_PARAMS_PATH = Path(__file__).resolve().parent.parent / "models" / "serving_params.json"
 
 N_FEATURES = 31
 MIN_SAMPLES = 8          # fewest attempts we accept; ~15 is the sweet spot
@@ -48,12 +45,18 @@ class Profile:
 
 
 @lru_cache(maxsize=1)
-def _scaler():
-    return joblib.load(_SCALER_PATH)
+def _scaler_stats():
+    p = json.loads(_PARAMS_PATH.read_text())
+    return (
+        np.asarray(p["scaler_mean"], dtype=float),
+        np.asarray(p["scaler_scale"], dtype=float),
+    )
 
 
 def _scale(rows) -> np.ndarray:
-    return _scaler().transform(np.asarray(rows, dtype=float))
+    """StandardScaler.transform: (x - mean) / std, in the classifier's feature space."""
+    mean, scale = _scaler_stats()
+    return (np.asarray(rows, dtype=float) - mean) / scale
 
 
 def _stats(z: np.ndarray):

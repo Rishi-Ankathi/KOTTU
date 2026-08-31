@@ -1,7 +1,7 @@
 """
 KOTTU authentication API.
 
-  /identify  - the trained 51-way LSTM. Reuses src.predict.Predictor as-is.
+  /identify  - the trained 51-way LSTM, via the TF-Lite runtime (api.infer).
   /enroll    - build a personal profile from several passphrase attempts.
   /verify    - accept / reject one attempt against a named profile (no model).
   /health    - liveness check for the keepalive ping.
@@ -11,12 +11,11 @@ Run from the repo root:  uvicorn api.main:app --reload
 
 from __future__ import annotations
 
-from functools import lru_cache
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from api import infer
 from api import store
 from api import verify as verifier
 
@@ -33,14 +32,6 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
-
-
-@lru_cache(maxsize=1)
-def get_predictor():
-    """Load the model once, lazily, on the first /identify call."""
-    from src.predict import Predictor
-
-    return Predictor()
 
 
 # --------------------------------------------------------------------------
@@ -74,10 +65,9 @@ def health():
 def identify(attempt: Attempt):
     """Which of the 51 enrolled CMU typists does this rhythm look most like?"""
     try:
-        predictor = get_predictor()
-    except FileNotFoundError:
+        return infer.identify(attempt.features)
+    except infer.ModelUnavailable:
         raise HTTPException(503, "model artifacts are not available")
-    return predictor.predict(attempt.features)
 
 
 @app.post("/enroll")

@@ -33,8 +33,10 @@ function vendorDir(rel) {
   console.log("  vendored", rel + "/");
 }
 
+// src/ is not vendored: the API runs the model through the TF-Lite runtime and
+// only reads the exported artifacts in models/ (kottu_model.tflite,
+// serving_params.json - produced by scripts/export_serving.py).
 vendorDir("api");
-vendorDir("src");
 vendorDir("models");
 
 copyFileSync(resolve(root, "api/requirements.txt"), resolve(dest, "requirements.txt"));

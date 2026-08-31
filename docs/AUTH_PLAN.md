@@ -6,15 +6,22 @@ is reused as-is.
 ## Status
 
 - **A. Containerise** — done. `api/Dockerfile`, `.dockerignore`. (Not built
-  locally — Docker isn't installed here; HF builds it.)
+  locally — Docker isn't installed here; the host builds it.)
+- **A′. Slim the runtime** — done (DEVLOG Phase 13). The model runs through the
+  standalone TF-Lite runtime, not `tensorflow-cpu`, so the image fits a ~512 MB
+  free tier. `scripts/export_serving.py` produces `models/kottu_model.tflite` +
+  `models/serving_params.json`; `scripts/check_parity.py` gates it.
 - **B. Browser bridge** — done in code (`web/src/lib/features.js`,
   `web/src/lib/verify.js`, `web/src/pages/authenticate.astro`), tested piecewise.
   **Open: B2** — validate browser-captured features against the dataset in a real
   browser; may need `THRESHOLD_K` re-tuned for live timer resolution.
-- **C. Deploy** — config files done (`deploy/hf-space/`, `web/netlify.toml`,
-  `web/.env.example`, `.github/workflows/keepalive.yml`). The account actions
-  (create the Space, the Netlify site, the `KOTTU_API_URL` repo variable) are
-  manual and still to do.
+- **C. Deploy** — the static site is live on Netlify. The API host is open:
+  Hugging Face's Docker SDK is not free, so the current target is Koyeb's free
+  tier (no card, always-on), with Render as the fallback. `deploy/hf-space/`
+  still works if a Space is ever wanted. Remaining account actions: create the
+  API host, set `PUBLIC_KOTTU_API` on Netlify, and — only if the host sleeps —
+  set `KOTTU_API_URL` and keep the keepalive workflow; on an always-on host,
+  disable it.
 - **CORS** — proposed env-driven change to `api/main.py`, awaiting approval.
 - **D. Follow-ups** — not started.
 

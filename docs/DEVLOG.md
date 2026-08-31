@@ -200,17 +200,56 @@ Files so deploying is copy-paste; the account actions are still manual.
 Pending: a proposed env-driven CORS change in `api/main.py` (lock `allow_origins`
 to the real site in production) — awaiting approval.
 
+## Phase 13 — API slimmed to the TF-Lite runtime
+
+The site deployed on Netlify. Hugging Face's Docker SDK turned out not to be
+free, and the alternatives that are (Render, Koyeb, …) cap RAM at ~512 MB —
+where `tensorflow-cpu` (≈600 MB installed, ≈400 MB just to import) does not fit.
+The model itself is tiny (35k params, a 456 KB `.keras` file); the whole
+hosting problem was the TensorFlow runtime.
+
+Fix: run the model through the **standalone TF-Lite runtime** (~5 MB) instead of
+full TensorFlow. FastAPI, every endpoint, and the request/response shapes are
+unchanged.
+
+- `scripts/export_serving.py` — one-time, run on a training machine: converts
+  `kottu_model.keras` → `kottu_model.tflite` (float32, built-in ops only, pinned
+  to a `(1, 11, 3)` input so the LSTM unrolls statically and needs no Flex ops),
+  and lifts the scaler mean/std + label classes into `serving_params.json`. Both
+  files are committed so the API builds without a training run. Imports TF but
+  never runs in production.
+- `scripts/check_parity.py` — throwaway gate: 40 real dataset samples through
+  both `src/predict.py` (full TF) and the TF-Lite path; requires the same
+  predicted user and class probabilities within 1e-4. Passes at ~6e-7 after one
+  fix — the converted LSTM is a fused op whose state persists between
+  `invoke()`s, so `api/infer.py` calls `reset_all_variables()` before each run.
+- `api/infer.py` *(new)* — `identify()` / `probabilities()` over the `.tflite`
+  file; only `numpy` + a TF-Lite interpreter at runtime (`tflite_runtime` in
+  prod, falls back to `tensorflow.lite` on a dev box).
+- `api/main.py` — `/identify` calls `api.infer` instead of
+  `src.predict.Predictor`. `api/verify.py` — reads the scaler stats from
+  `serving_params.json`; no more `joblib` / `scikit-learn`.
+- `api/requirements.txt` — `fastapi`, `uvicorn`, `tflite-runtime`, `numpy`.
+- `api/Dockerfile`, `deploy/hf-space/` — no TensorFlow, no `libgomp1`, `src/` no
+  longer vendored (the API only reads `models/`).
+- `src/`, `train.py`, `tests/` untouched; `src/predict.py` stays as the
+  training-side reference. Test suite green.
+
+Target host: Koyeb free tier (no card, always-on) — pending. On an always-on
+host the keepalive workflow is unnecessary and should be disabled/removed.
+
 ## Current state
 
-- `web/` — Astro static site, four pages. Authenticate now calls the real API
-  (Identify + Verify); needs a live browser + running API to exercise end to end.
-- `api/` — FastAPI service, working locally; container + deploy files ready, not
-  yet pushed to a Space.
+- `web/` — Astro static site, four pages, deployed on Netlify. Authenticate
+  calls the real API; needs a live browser + running API end to end.
+- `api/` — FastAPI service, TF-Lite serving path, works locally (all endpoints
+  smoke-tested, parity verified). Not yet deployed to a host.
 - Backend pipeline (`src/`, `train.py`, `tests/`) unchanged throughout.
-- Committed through `f2d3e39` (API + Docker + docs). Uncommitted: Phase 11 web
-  changes, Phase 12 deploy config.
+- Committed through `40a37a0`. Uncommitted: Phase 13 (TF-Lite slim).
 
 ## Next
 
-Deployment (create the Space + Netlify site + repo variable), the CORS change,
-and the Part D follow-ups in [`docs/AUTH_PLAN.md`](AUTH_PLAN.md).
+Pick a host (Koyeb, else Render) and deploy `api/`; point the Netlify site's
+`PUBLIC_KOTTU_API` at it; disable the keepalive workflow if the host is
+always-on. Then the CORS change and the Part D follow-ups in
+[`docs/AUTH_PLAN.md`](AUTH_PLAN.md).
