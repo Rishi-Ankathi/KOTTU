@@ -11,6 +11,8 @@ Run from the repo root:  uvicorn api.main:app --reload
 
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -23,12 +25,17 @@ N_FEATURES = 31
 
 app = FastAPI(title="KOTTU API", version="1.0")
 
-# The static site is served from a different origin, so the browser needs
-# permission to call this API. Tighten allow_origins to the real site URL
-# before this is public.
+# The static site calls this API from another origin, so its URL must be listed
+# here. Default: the deployed site plus the local Astro dev server. Override with
+# KOTTU_ALLOWED_ORIGINS (comma-separated) at deploy time if the domain changes.
+ALLOWED_ORIGINS = os.environ.get(
+    "KOTTU_ALLOWED_ORIGINS",
+    "https://kottu-lstm.netlify.app,http://localhost:4321,http://127.0.0.1:4321",
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
